@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ws://127.0.0.1:* ws://localhost:*;">
+<title>RL Panel</title>
+<style>
+  :root { --bg: #0f1219; --panel: #161b26; --panel2: #1d2433; --line: #283042; --ink: #eef1f7; --mute: #9aa4b8; --blue: #2f7cff; --orange: #ff8a1f; --ok: #3ddc84; --warn: #ffd166; --bad: #ff5c6c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; height: 100vh; display: grid; grid-template-columns: 200px 1fr; }
+  nav { background: var(--panel); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; }
+  nav .brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; font-weight: 800; letter-spacing: .04em; }
+  nav .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  nav button { text-align: left; background: none; border: 0; color: var(--mute); padding: 9px 12px; border-radius: 8px; cursor: pointer; font: inherit; }
+  nav button.active, nav button:hover { background: var(--panel2); color: var(--ink); }
+  nav .spacer { flex: 1; }
+  nav .foot { font-size: 11px; color: var(--mute); padding: 8px 12px; }
+  main { overflow: auto; padding: 22px 26px; }
+  section { display: none; } section.active { display: block; }
+  h1 { font-size: 20px; margin: 0 0 4px; } .sub { color: var(--mute); margin: 0 0 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; } .kv b { color: var(--mute); font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--panel2); }
+  .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+  button.btn { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 9px 14px; cursor: pointer; font: inherit; font-weight: 600; }
+  button.btn:hover { border-color: #3a4459; } button.btn.primary { background: var(--blue); border-color: var(--blue); } button.btn.orange { background: var(--orange); border-color: var(--orange); color: #1a1000; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .big button { padding: 18px; font-size: 16px; border-radius: 14px; text-align: left; }
+  .big small { display: block; font-weight: 500; opacity: .85; margin-top: 4px; font-size: 12px; }
+  code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; background: #0b0e14; padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+  pre.log { background: #0b0e14; border: 1px solid var(--line); border-radius: 10px; padding: 10px; max-height: 220px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); } th { color: var(--mute); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; } .pos { color: var(--ok); } .neg { color: var(--bad); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type=number], input[type=text], select { background: #0b0e14; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; }
+  label.chk { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .note { color: var(--mute); font-size: 12px; margin-top: 8px; }
+  .banner { background: #2a2113; border: 1px solid #5a4a1c; color: var(--warn); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; }
+  svg.chart { width: 100%; height: 180px; background: #0b0e14; border-radius: 10px; border: 1px solid var(--line); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand"><img src="assets/icon.png" alt=""> RL Panel</div>
+  <button data-tab="estado" class="active">Estado</button>
+  <button data-tab="overlay">Overlay</button>
+  <button data-tab="lanzador">Lanzador</button>
+  <button data-tab="mmr">Historial MMR</button>
+  <button data-tab="personal" id="navPersonal" class="hidden">Personal</button>
+  <button data-tab="ajustes">Ajustes</button>
+  <div class="spacer"></div>
+  <div class="foot">No toca el proceso del juego. Solo Stats API oficial, ficheros de configuración y logs.<br><span id="ver"></span></div>
+</nav>
+<main>
+  <div id="demoBanner" class="banner hidden">Modo demostración: esta página se abrió fuera de la app, los datos del sistema son de ejemplo.</div>
+
+  <section id="tab-estado" class="active">
+    <h1>Estado</h1><p class="sub">Qué está pasando ahora mismo.</p>
+    <div class="grid">
+      <div class="card"><h3>Rocket League</h3>
+        <div class="kv"><b>Proceso</b><span id="gameRun">—</span><b>Anticheat</b><span id="gameMode">—</span><b>Build</b><span id="gameVer">—</span><b>Epic</b><span id="epicVer">—</span></div>
+      </div>
+      <div class="card"><h3>Stats API oficial</h3>
+        <div class="kv"><b>Conexión</b><span id="apiConn">—</span><b>Último evento</b><span id="apiLast">—</span><b>Tasa (ini)</b><span id="apiRate">—</span><b>Puertos</b><span id="apiPorts">—</span></div>
+        <div class="row" style="margin-top:10px"><span class="note">Activar/ajustar (requiere reiniciar el juego):</span>
+          <button class="btn" data-rate="10">10 Hz</button><button class="btn" data-rate="30">30 Hz</button><button class="btn" data-rate="0">Apagar</button></div>
+      </div>
+      <div class="card"><h3>Historial MMR</h3>
+        <div class="kv"><b>Colas registradas</b><span id="mmrCount">—</span><b>Última</b><span id="mmrLast">—</span></div>
+      </div>
+      <div class="card" id="cardSwapMini"><h3>Alpha Boost (personal)</h3><div id="swapMini">—</div></div>
+    </div>
+  </section>
+
+  <section id="tab-overlay">
+    <h1>Overlay</h1><p class="sub">Marcador, reloj, tu boost y velocidad, goles. Datos de la Stats API oficial de Psyonix; solo se ven cuando hay partida.</p>
+    <div class="grid">
+      <div class="card"><h3>Ventana flotante</h3>
+        <p>Una ventana transparente siempre encima del juego. Funciona con Rocket League en <b>ventana sin bordes</b> (en pantalla completa exclusiva Windows no dibuja nada encima).</p>
+        <div class="row"><button class="btn primary" id="btnOverlay">Mostrar / ocultar ventana</button>
+          <label class="chk"><input type="checkbox" id="chkClick"> Atravesar clics (no bloquea el ratón)</label></div>
+        <div class="row" style="margin-top:10px"><span>Escala</span><input type="number" id="ovScale" min="0.5" max="3" step="0.1" style="width:80px">
+          <label class="chk"><input type="checkbox" id="showScore" checked> Marcador</label>
+          <label class="chk"><input type="checkbox" id="showPlayer" checked> Tu boost/velocidad</label>
+          <label class="chk"><input type="checkbox" id="showFeed" checked> Goles y eventos</label></div>
+        <p class="note">Cambios de escala/contenido se aplican al volver a abrir la ventana.</p>
+      </div>
+      <div class="card"><h3>OBS Studio</h3>
+        <p>Añade una fuente <b>Navegador</b> → marca <b>Archivo local</b> → elige este fichero. Fondo transparente automático. Tamaño recomendado 1920×1080 (o el que quieras, la escala se ajusta arriba).</p>
+        <div class="mono" id="obsPath">—</div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="btnCopyPath">Copiar ruta</button><button class="btn" id="btnCopyUrl">Copiar URL con opciones</button><button class="btn" id="btnOpenFolder">Abrir carpeta</button></div>
+        <p class="note">OBS se conecta directamente al juego (ws://127.0.0.1:49124), sin pasar por el panel. El panel puede estar cerrado.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-lanzador">
+    <h1>Lanzador</h1><p class="sub">Dos formas oficiales de arrancar Rocket League a través del launcher de Epic.</p>
+    <div class="big">
+      <button class="btn primary" id="btnEac">Jugar online<small>Con Easy Anti-Cheat. Partidas online, privadas y torneos.</small></button>
+      <button class="btn orange" id="btnNoEac">Entrenar sin EAC<small>Modo oficial de Psyonix: entrenamiento, offline, LAN, repeticiones y mods (BakkesMod).</small></button>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Cómo funciona</h3>
+      <p>Epic guarda unos <b>argumentos adicionales</b> por juego (los mismos que puedes escribir en Biblioteca → Rocket League → Gestionar). El panel añade <code>-noeac</code> ahí solo durante el arranque, pide a Epic que abra el juego con su enlace oficial y luego restaura tus argumentos. El modo real se lee del propio log del juego (<code>EAC: bAntiCheatEnabled</code>).</p>
+      <div class="kv"><b>Tus argumentos</b><span id="addCmds">—</span><b>Estado</b><span id="launchState">—</span></div>
+      <pre class="log" id="launchLog"></pre>
+      <p class="note">Si Epic ignora el cambio, la alternativa manual es: Epic → Rocket League → menú "···" → <b>Play without Easy Anti-Cheat</b>.</p>
+    </div>
+  </section>
+
+  <section id="tab-mmr">
+    <h1>Historial de MMR</h1><p class="sub">Leído del log del juego cada vez que entras en cola (por eso el resultado de una partida aparece al hacer la <i>siguiente</i> cola).</p>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row"><span>Playlist</span><select id="mmrPlaylist"></select><span class="spacer" style="flex:1"></span>
+        <span>Calibración: MMR = valor ×</span><input type="number" id="calFactor" step="0.5" style="width:70px"><span>+</span><input type="number" id="calOffset" step="1" style="width:70px"><button class="btn" id="btnCalib">Aplicar</button><button class="btn" id="btnRescan">Releer logs</button></div>
+      <p class="note">Comprueba con el MMR que muestra el juego (ajuste "Mostrar MMR" desde la v2.66). Por defecto ×20 +0.</p>
+      <svg class="chart" id="chart" viewBox="0 0 800 180" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="card"><table><thead><tr><th>Fecha</th><th>Playlist</th><th>Rango</th><th class="num">Valor</th><th class="num">MMR</th><th class="num">Δ</th></tr></thead><tbody id="mmrRows"></tbody></table></div>
+  </section>
+
+  <section id="tab-personal">
+    <h1>Personal</h1><p class="sub">Solo aparece porque existen tus herramientas locales. No se distribuye con el panel.</p>
+    <div class="grid">
+      <div class="card"><h3>Alpha Boost (swap de .upk)</h3>
+        <div class="kv"><b>Estado</b><span id="swapState">—</span><b>Fichero</b><span id="swapFile">—</span><b>Original</b><span id="swapOrig">—</span></div>
+        <div class="row" style="margin-top:10px"><button class="btn orange" id="btnReapply">Reaplicar (juego cerrado)</button></div>
+        <pre class="log" id="swapLog"></pre>
+      </div>
+      <div class="card"><h3>Catálogo de integridad EAC</h3>
+        <div class="kv"><b>base.bin</b><span id="baseBin">—</span><b>Referencia</b><span id="baseRef">—</span></div>
+        <p class="note">Si el tamaño cambia de golpe, Psyonix ha tocado el catálogo: revisar antes de jugar online.</p>
+        <button class="btn" id="btnBaseline">Fijar referencia actual</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-ajustes">
+    <h1>Ajustes</h1><p class="sub"></p>
+    <div class="grid">
+      <div class="card"><h3>Comportamiento</h3>
+        <label class="chk"><input type="checkbox" id="setTray"> Al cerrar, quedarse en la bandeja</label>
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="setAutostart"> Arrancar con Windows (oculto)</label>
+      </div>
+      <div class="card"><h3>Actualizaciones</h3>
+        <div class="kv"><b>Versión</b><span id="setVer">—</span><b>Repositorio</b><input type="text" id="setRepo" placeholder="usuario/repositorio (GitHub Releases)"></div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="btnSaveRepo">Guardar</button><button class="btn" id="btnCheckUpd">Buscar actualizaciones</button><span id="updStatus" class="note"></span></div>
+      </div>
+      <div class="card"><h3>Rutas</h3>
+        <div class="kv"><b>Datos</b><span class="mono" id="pathData">—</span><b>Logs RL</b><span class="mono" id="pathLogs">—</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="shared/statsclient.js"></script>
+<script src="panel.js"></script>
+</body>
+</html>
