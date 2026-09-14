@@ -115,8 +115,8 @@
     <h1>Historial de MMR</h1><p class="sub">Leído del log del juego cada vez que entras en cola (por eso el resultado de una partida aparece al hacer la <i>siguiente</i> cola).</p>
     <div class="card" style="margin-bottom:14px">
       <div class="row"><span>Playlist</span><select id="mmrPlaylist"></select><span class="spacer" style="flex:1"></span>
-        <span>Calibración: MMR = valor ×</span><input type="number" id="calFactor" step="0.5" style="width:70px"><span>+</span><input type="number" id="calOffset" step="1" style="width:70px"><button class="btn" id="btnCalib">Aplicar</button><button class="btn" id="btnRescan">Releer logs</button></div>
-      <p class="note">Comprueba con el MMR que muestra el juego (ajuste "Mostrar MMR" desde la v2.66). Por defecto ×20 +0.</p>
+        <span>Tu MMR real ahora en esta playlist:</span><input type="number" id="calReal" step="1" style="width:90px" placeholder="p.ej. 1495"><button class="btn primary" id="btnCalib">Calibrar</button><button class="btn" id="btnClearCal">Borrar calibración</button><button class="btn" id="btnRescan">Releer logs</button></div>
+      <p class="note" id="calModel">El juego escribe un valor interno, no el MMR que ves. Con cada punto que le des (MMR real de una playlist, leído del juego con "Mostrar MMR" o de tu perfil) la app ajusta la conversión.</p>
       <svg class="chart" id="chart" viewBox="0 0 800 180" preserveAspectRatio="none"></svg>
     </div>
     <div class="card"><table><thead><tr><th>Fecha</th><th>Playlist</th><th>Rango</th><th class="num">Valor</th><th class="num">MMR</th><th class="num">Δ</th></tr></thead><tbody id="mmrRows"></tbody></table></div>

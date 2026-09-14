@@ -11,7 +11,8 @@ const swap = require('./swaplayer');
 log.transports.file.level = 'info';
 log.info('RL Panel arrancando', app.getVersion());
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+// Una sola instancia (salvo en la prueba de humo, que debe poder correr junto a la app instalada)
+if (!process.argv.includes('--smoke') && !app.requestSingleInstanceLock()) { app.quit(); }
 
 let cfg, watch, tray = null, panelWin = null, overlayWin = null, quitting = false;
 const RENDERER = path.join(__dirname, '..', 'renderer');
@@ -110,7 +111,16 @@ function setupIpc() {
   ipcMain.handle('statsini:set', (_e, rate) => statsini.setRate(rate));
   ipcMain.handle('mmr:history', () => watch.getHistory(cfg.get('mmr')));
   ipcMain.handle('mmr:rescan', () => { const r = watch.rescan(); return { ...r, history: watch.getHistory(cfg.get('mmr')) }; });
-  ipcMain.handle('mmr:setCalib', (_e, c) => { cfg.set('mmr', { factor: Number(c.factor) || 20, offset: Number(c.offset) || 0 }); return watch.getHistory(cfg.get('mmr')); });
+  ipcMain.handle('mmr:setCalib', (_e, c) => { cfg.set('mmr', { ...cfg.get('mmr'), factor: Number(c.factor) || 20, offset: Number(c.offset) || 0 }); return watch.getHistory(cfg.get('mmr')); });
+  ipcMain.handle('mmr:addPoint', (_e, playlist, real) => {
+    const h = watch.getHistory(cfg.get('mmr'));
+    const cola = h.colas.filter((c) => c.playlist === Number(playlist)).pop();
+    if (!cola || !Number.isFinite(Number(real))) return { error: 'No hay ninguna cola registrada de esa playlist todavia.', history: h };
+    const points = [...(cfg.get('mmr.points') || []), { playlist: Number(playlist), raw: cola.mmrRaw, real: Number(real), time: cola.time, at: new Date().toISOString() }];
+    cfg.set('mmr.points', points);
+    return { history: watch.getHistory(cfg.get('mmr')) };
+  });
+  ipcMain.handle('mmr:clearPoints', () => { cfg.set('mmr.points', []); return watch.getHistory(cfg.get('mmr')); });
   ipcMain.handle('swap:reapply', async () => {
     if (await launcher.isRunning()) return { code: -2, output: 'Rocket League esta abierto. Cierralo del todo y vuelve a intentarlo.' };
     return swap.reapply(cfg.get('swap'), (line) => send('swap:progress', line));

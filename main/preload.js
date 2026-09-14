@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('rlpanel', {
   history: () => invoke('mmr:history'),
   rescan: () => invoke('mmr:rescan'),
   setCalib: (calib) => invoke('mmr:setCalib', calib),
+  addPoint: (playlist, real) => invoke('mmr:addPoint', playlist, real),
+  clearPoints: () => invoke('mmr:clearPoints'),
   swapReapply: () => invoke('swap:reapply'),
   swapSetBaseline: () => invoke('swap:baseline'),
   overlayToggle: (opts) => invoke('overlay:toggle', opts),

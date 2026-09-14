@@ -7,10 +7,10 @@
     window.rlpanel = {
       version: async () => '0.1.0-demo',
       state: async () => ({ version: '0.1.0-demo', game: { running: false, mode: 'none', version: '260825.79374.526531' }, statsIni: { exists: true, rate: 10, port: 49123, webPort: 49124 }, swap: { available: false }, overlayOpen: false, epic: { version: '++Prime+Update59.1' }, additional: { commands: '-dx11', enabled: true }, config: { overlay: { scale: 1, clickthrough: true, show: ['score', 'clock', 'player', 'feed'] }, mmr: { factor: 20, offset: 0 }, minimizeToTray: true, autostart: false, updates: { repo: '' } }, userData: 'C:\\Users\\…\\AppData\\Roaming\\rl-panel', logDir: 'C:\\Users\\…\\Documents\\My Games\\Rocket League\\TAGame\\Logs' }),
-      history: async () => ({ colas: [{ time: '2026-09-13T17:20:49Z', playlist: 2, playlistName: 'Casual 2v2', tier: 19, tierName: 'Gran Campeon I', mmrRaw: 83.778, mmr: 1676, delta: 126 }, { time: '2026-09-13T17:35:10Z', playlist: 2, playlistName: 'Casual 2v2', tier: 19, tierName: 'Gran Campeon I', mmrRaw: 82.834, mmr: 1657, delta: -19 }], byPlaylist: { 2: [{ time: '2026-09-13T17:20:49Z', mmr: 1676 }, { time: '2026-09-13T17:35:10Z', mmr: 1657 }] }, playlists: [{ id: 2, name: 'Casual 2v2', n: 2 }], partidas: 56, fines: 95 }),
+      history: async () => ({ colas: [{ time: '2026-09-13T17:20:49Z', playlist: 2, playlistName: 'Casual 2v2', tier: 19, tierName: 'Gran Campeon I', mmrRaw: 83.778, mmr: 1676, delta: 126 }, { time: '2026-09-13T17:35:10Z', playlist: 2, playlistName: 'Casual 2v2', tier: 19, tierName: 'Gran Campeon I', mmrRaw: 82.834, mmr: 1657, delta: -19 }], byPlaylist: { 2: [{ time: '2026-09-13T17:20:49Z', mmr: 1676 }, { time: '2026-09-13T17:35:10Z', mmr: 1657 }] }, playlists: [{ id: 2, name: 'Casual 2v2', n: 2 }], model: { a: 20, b: 0, n: 0, method: 'defecto', perPlaylist: {} }, partidas: 56, fines: 95 }),
       launch: async (m) => ({ ok: true, mode: m, message: 'demo', steps: ['demo'] }), detect: async () => ({ running: false, mode: 'none' }),
       setRate: async (r) => ({ exists: true, rate: r, port: 49123, webPort: 49124 }), rescan: async () => ({ added: 0, history: await window.rlpanel.history() }),
-      setCalib: async () => window.rlpanel.history(), swapReapply: async () => ({ code: 0, output: 'demo' }), swapSetBaseline: async () => ({}),
+      setCalib: async () => window.rlpanel.history(), addPoint: async () => ({ history: await window.rlpanel.history() }), clearPoints: async () => window.rlpanel.history(), swapReapply: async () => ({ code: 0, output: 'demo' }), swapSetBaseline: async () => ({}),
       overlayToggle: async () => ({ open: true }), overlayPaths: async () => ({ file: 'C:\\…\\renderer\\overlay.html', url: 'file:///C:/…/overlay.html?ws=ws://127.0.0.1:49124' }),
       config: async () => null, setConfig: async () => null, copy: async () => true, openPath: async () => '', openExternal: async () => true, checkUpdates: async () => ({ status: 'disabled' }), on: () => () => {},
     };
@@ -43,7 +43,6 @@
     const c = state.config || {};
     $('chkClick').checked = !!(c.overlay && c.overlay.clickthrough); $('ovScale').value = (c.overlay && c.overlay.scale) || 1;
     const show = (c.overlay && c.overlay.show) || []; $('showScore').checked = show.includes('score'); $('showPlayer').checked = show.includes('player'); $('showFeed').checked = show.includes('feed');
-    $('calFactor').value = (c.mmr && c.mmr.factor) ?? 20; $('calOffset').value = (c.mmr && c.mmr.offset) ?? 0;
     $('setTray').checked = !!c.minimizeToTray; $('setAutostart').checked = !!c.autostart; $('setRepo').value = (c.updates && c.updates.repo) || '';
     $('setVer').textContent = state.version; $('ver').textContent = 'v' + state.version; $('pathData').textContent = state.userData || ''; $('pathLogs').textContent = state.logDir || '';
     renderSwap(state.swap);
@@ -71,6 +70,12 @@
     $('mmrLast').textContent = last ? `${last.playlistName} · ${last.mmr} · ${fmtDate(last.time)}` : '—';
     const sel = $('mmrPlaylist'); const cur = sel.value; sel.innerHTML = '<option value="">Todas</option>' + history.playlists.map((p) => `<option value="${p.id}">${p.name} (${p.n})</option>`).join('');
     if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+    const m = history.model;
+    if (m) {
+      const per = Object.entries(m.perPlaylist || {}).filter(([, v]) => Math.abs(v) >= 1).map(([pl, v]) => `${(history.playlists.find((p) => String(p.id) === pl) || { name: 'Playlist ' + pl }).name} ${v > 0 ? '+' : ''}${Math.round(v)}`).join(', ');
+      $('calModel').textContent = m.n === 0 ? 'Sin calibrar: se usa MMR = valor × 20. Dale al menos un punto real (mejor uno por playlist).'
+        : `Conversión ajustada con ${m.n} punto${m.n > 1 ? 's' : ''} (${m.method}): MMR ≈ ${m.a.toFixed(2)} × valor + ${Math.round(m.b)}` + (per ? ` · corrección por playlist: ${per}` : '') + '. Cada punto nuevo afina el ajuste.';
+    }
     renderTable(); renderChart();
   }
   function selected() { const v = $('mmrPlaylist').value; return history.colas.filter((c) => !v || String(c.playlist) === v); }
@@ -120,7 +125,14 @@
   $('btnEac').addEventListener('click', () => launch('eac')); $('btnNoEac').addEventListener('click', () => launch('noeac'));
   api.on('launcher:progress', (p) => { if (p.step && p.step !== 'waiting' && p.step !== 'done') $('launchLog').textContent += p.step + '\n'; if (p.step === 'waiting') $('launchState').innerHTML = pill(`esperando al juego… ${p.elapsed}s`, 'warn'); });
   $('mmrPlaylist').addEventListener('change', () => { renderTable(); renderChart(); });
-  $('btnCalib').addEventListener('click', async () => refreshHistory(await api.setCalib({ factor: $('calFactor').value, offset: $('calOffset').value })));
+  $('btnCalib').addEventListener('click', async () => {
+    const pl = $('mmrPlaylist').value; const real = Number($('calReal').value);
+    if (!pl) { $('calModel').textContent = 'Elige primero una playlist concreta en el desplegable.'; return; }
+    if (!real) { $('calModel').textContent = 'Escribe tu MMR real actual de esa playlist.'; return; }
+    const r = await api.addPoint(Number(pl), real);
+    if (r.error) $('calModel').textContent = r.error; else { $('calReal').value = ''; refreshHistory(r.history); }
+  });
+  $('btnClearCal').addEventListener('click', async () => refreshHistory(await api.clearPoints()));
   $('btnRescan').addEventListener('click', async () => { const r = await api.rescan(); refreshHistory(r.history); });
   api.on('mmr:event', () => refreshHistory());
   $('btnReapply').addEventListener('click', async () => { $('swapLog').textContent = ''; $('btnReapply').disabled = true; const r = await api.swapReapply(); $('swapLog').textContent += (r.output || '') + `\n[exit ${r.code}]`; $('btnReapply').disabled = false; refreshState(); });

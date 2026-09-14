@@ -14,7 +14,7 @@ const DEFAULTS = {
     clickthrough: true,
     bounds: { x: 40, y: 40, width: 560, height: 240 },
   },
-  mmr: { factor: 20, offset: 0 },
+  mmr: { factor: 20, offset: 0, points: [] },
   statsApi: { wsUrl: 'ws://127.0.0.1:49124', preferredRate: 10 },
   swap: {
     tools: path.join(os.homedir(), 'Documents', 'RLUPKTools_v33'),

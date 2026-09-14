@@ -107,6 +107,18 @@ if (fs.existsSync(one)) {
   ok('parser incremental == parseFile', evs.length === ref.length, `${evs.length} vs ${ref.length}`);
 }
 
+// --- calibracion MMR (puntos reales de Miquel, 2026-09-14) ---
+{
+  const { fitModel } = require('../main/logwatch');
+  const pts = [{ playlist: 10, raw: 23.907, real: 981 }, { playlist: 11, raw: 69.150, real: 1495 }, { playlist: 13, raw: 48.951, real: 1258 }];
+  const m = fitModel(pts, 20, 0);
+  const pred = (raw, pl) => Math.round(m.a * raw + m.b + (m.perPlaylist[pl] || 0));
+  ok('fitModel: ajuste ~11.4x+709 con 3 puntos', m.method === 'ajuste' && Math.abs(m.a - 11.36) < 0.1 && Math.abs(m.b - 709) < 5, `a=${m.a.toFixed(3)} b=${m.b.toFixed(1)}`);
+  ok('fitModel: reproduce los 3 puntos con correccion por playlist', pred(23.907, 10) === 981 && pred(69.150, 11) === 1495 && pred(48.951, 13) === 1258, `${pred(23.907, 10)} ${pred(69.150, 11)} ${pred(48.951, 13)}`);
+  const one = fitModel([pts[1]], 20, 0);
+  ok('fitModel: 1 punto = pendiente 20 + offset', one.method === 'offset' && Math.round(one.a * 69.150 + one.b) === 1495);
+  ok('fitModel: sin puntos = defecto', fitModel([], 20, 0).method === 'defecto' && fitModel([], 20, 0).a === 20);
+}
 // --- swaplayer ---
 const sw = swap.status(DEFAULTS.swap);
 ok('swap status', sw.available === true && typeof sw.installed === 'boolean' && sw.baseBin && sw.baseBin.size > 0, JSON.stringify({ installed: sw.installed, isOriginal: sw.isOriginal, baseBin: sw.baseBin && sw.baseBin.size }));

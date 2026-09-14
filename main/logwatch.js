@@ -41,8 +41,29 @@ const RE = {
 const playlistName = (id) => PLAYLISTS[id] || `Playlist ${id}`;
 const tierName = (t) => (t >= 0 && t < TIERS.length ? TIERS[t] : `Tier ${t}`);
 
+/**
+ * Modelo MMR_mostrado ~= a * valorLog + b, ajustado por minimos cuadrados con los puntos de calibracion
+ * {playlist, raw, real} que introduce el usuario; con un solo punto se usa la pendiente por defecto y se
+ * ajusta el offset; sin puntos, factor/offset por defecto. perPlaylist corrige el residuo medio de cada playlist.
+ */
+function fitModel(points, factor = 20, offset = 0) {
+  const pts = (points || []).filter((p) => Number.isFinite(+p.raw) && Number.isFinite(+p.real)).map((p) => ({ playlist: +p.playlist, raw: +p.raw, real: +p.real }));
+  let a = factor, b = offset, method = 'defecto';
+  const n = pts.length;
+  if (n >= 2) {
+    const mx = pts.reduce((s, p) => s + p.raw, 0) / n, my = pts.reduce((s, p) => s + p.real, 0) / n;
+    const sxx = pts.reduce((s, p) => s + (p.raw - mx) ** 2, 0), sxy = pts.reduce((s, p) => s + (p.raw - mx) * (p.real - my), 0);
+    if (sxx > 1e-6) { a = sxy / sxx; b = my - a * mx; method = 'ajuste'; } else { a = factor; b = my - a * mx; method = 'offset'; }
+  } else if (n === 1) { a = factor; b = pts[0].real - a * pts[0].raw; method = 'offset'; }
+  const perPlaylist = {};
+  const groups = {};
+  for (const p of pts) (groups[p.playlist] = groups[p.playlist] || []).push(p.real - (a * p.raw + b));
+  for (const [pl, res] of Object.entries(groups)) perPlaylist[pl] = res.reduce((s, r) => s + r, 0) / res.length;
+  return { a, b, n, method, perPlaylist };
+}
+
 class SessionParser {
-  constructor() { this.anchor = null; this.openAt = null; this.pending = null; this.events = []; this.eac = null; this.rest = ''; this.lastPlaylist = null; }
+  constructor() { this.anchor = null; this.openAt = null; this.pending = null; this.events = []; this.eac = null; this.rest = ''; this.lastPlaylist = null; this.lastCola = null; }
   feedChunk(text) {
     const data = this.rest + text;
     const lines = data.split(/\r?\n/);
@@ -69,10 +90,20 @@ class SessionParser {
     if (a && !this.anchor) this.anchor = { el, date: new Date(+a[1], +a[2] - 1, +a[3], +a[4], +a[5], +a[6]) };
     let q;
     if ((q = rest.match(RE.queue))) { this.pending = { playlist: +q[1] }; return null; }
-    if ((q = rest.match(RE.playlists)) && this.pending) { this.pending.playlists = q[1]; return null; }
+    if ((q = rest.match(RE.playlists))) {
+      // "for playlists N" es la playlist realmente encolada; suele llegar DESPUES de PartyLeaderTier
+      if (this.pending) { this.pending.playlists = q[1]; return null; }
+      if (this.lastCola && el - this.lastCola.elapsed < 60 && !this.lastCola.playlists) {
+        this.lastCola.playlists = q[1];
+        const ids = q[1].split(',').map(Number).filter(Boolean);
+        if (ids.length === 1 && ids[0] !== this.lastCola.playlist) { this.lastCola.buttonPlaylist = this.lastCola.playlist; this.lastCola.playlist = ids[0]; }
+        return this.lastCola; // misma key: LogWatch lo trata como actualizacion
+      }
+      return null;
+    }
     if ((q = rest.match(RE.mmr)) && this.pending) { this.pending.mmrRaw = parseFloat(q[1]); return null; }
     if ((q = rest.match(RE.tier)) && this.pending && this.pending.mmrRaw !== undefined) {
-      const ev = { kind: 'cola', elapsed: el, ...this.pending, tier: +q[1] }; this.pending = null; this.lastPlaylist = ev.playlist; return this._finish(ev);
+      const ev = { kind: 'cola', elapsed: el, ...this.pending, tier: +q[1] }; this.pending = null; this.lastPlaylist = ev.playlist; this.lastCola = ev; return this._finish(ev);
     }
     // partida online (solo o en party): carga de mapa desde un servidor con IP
     if ((q = rest.match(RE.loadOnline))) return this._finish({ kind: 'partida', elapsed: el, server: q[1], map: q[2], playlist: this.lastPlaylist ?? null });
@@ -117,8 +148,14 @@ class LogWatch {
     try { fs.mkdirSync(path.dirname(this.storeFile), { recursive: true }); fs.writeFileSync(this.storeFile, JSON.stringify(this.store)); } catch (e) { /* ignorar */ }
   }
   _add(ev, emit) {
-    if (!ev || this.store.events[ev.key]) return false;
-    this.store.events[ev.key] = ev;
+    if (!ev) return false;
+    const prev = this.store.events[ev.key];
+    if (prev) {
+      // actualizacion tardia (p.ej. llega la playlist real de la cola)
+      if (ev.playlists && !prev.playlists) { Object.assign(prev, { playlists: ev.playlists, playlist: ev.playlist, buttonPlaylist: ev.buttonPlaylist }); if (emit) this.onEvent(prev); return true; }
+      return false;
+    }
+    this.store.events[ev.key] = { ...ev };
     if (emit) this.onEvent(ev);
     return true;
   }
@@ -154,12 +191,13 @@ class LogWatch {
   }
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   liveEac() { return this.live && this.live.parser ? this.live.parser.eac : null; }
-  getHistory({ factor = 20, offset = 0 } = {}) {
+  getHistory({ factor = 20, offset = 0, points = [] } = {}) {
     const all = Object.values(this.store.events).sort((a, b) => (a.time || '').localeCompare(b.time || '') || a.elapsed - b.elapsed);
     const colas = all.filter((e) => e.kind === 'cola');
+    const model = fitModel(points, factor, offset);
     const last = {};
     for (const e of colas) {
-      e.mmr = Math.round(e.mmrRaw * factor + offset);
+      e.mmr = Math.round(model.a * e.mmrRaw + model.b + (model.perPlaylist[e.playlist] || 0));
       e.playlistName = playlistName(e.playlist);
       e.tierName = tierName(e.tier);
       const prev = last[e.playlist];
@@ -169,7 +207,7 @@ class LogWatch {
     const byPlaylist = {};
     for (const e of colas) (byPlaylist[e.playlist] = byPlaylist[e.playlist] || []).push({ time: e.time, mmr: e.mmr, tier: e.tier });
     return {
-      colas, byPlaylist,
+      colas, byPlaylist, model,
       partidas: all.filter((e) => e.kind === 'partida').length,
       freeplays: all.filter((e) => e.kind === 'freeplay').length,
       fines: all.filter((e) => e.kind === 'fin').length,
@@ -178,4 +216,4 @@ class LogWatch {
   }
 }
 
-module.exports = { LogWatch, SessionParser, parseFile, playlistName, tierName, PLAYLISTS, TIERS, LOG_DIR };
+module.exports = { LogWatch, SessionParser, parseFile, fitModel, playlistName, tierName, PLAYLISTS, TIERS, LOG_DIR };
