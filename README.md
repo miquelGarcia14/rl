@@ -19,7 +19,7 @@ lectura de memoria ni hooks. Solo usa:
 
 ## Instalar
 
-1. Descarga `RL Panel Setup x.y.z.exe` de *Releases* y ejecútalo.
+1. Descarga `RL Panel Setup x.y.z.exe` de [Releases](https://github.com/miquelGarcia14/rl/releases/latest) y ejecútalo.
 2. Windows mostrará "Windows protegió tu PC" porque el instalador **no está firmado** (la firma cuesta
    dinero o exige un proceso de código abierto que está en marcha). Pulsa *Más información → Ejecutar de todas formas*.
 3. Abre RL Panel → pestaña **Estado** → pulsa **10 Hz** para activar la Stats API → reinicia Rocket League.
@@ -49,9 +49,14 @@ npx electron . --smoke         # arranca, vuelca estado y errores del renderer, 
 npm run dist                   # instalador NSIS en dist/
 ```
 
+## Actualizaciones
+
+La app comprueba al arrancar si hay una versión nueva en [Releases](https://github.com/miquelGarcia14/rl/releases) de este
+repositorio, la descarga en segundo plano y la instala al cerrar. Se puede desactivar en *Ajustes*.
+
 ## Privacidad y límites
 
-- No envía nada a Internet (salvo comprobar actualizaciones en GitHub si configuras un repositorio).
+- No envía nada a Internet salvo la comprobación de actualizaciones en GitHub (sin datos tuyos: solo pide la lista de versiones).
 - No modifica archivos del juego. No toca `RocketLeague_EAC.exe` ni el servicio de EAC.
 - Jugar online sin EAC no es posible ni se pretende: es política de Psyonix.
 

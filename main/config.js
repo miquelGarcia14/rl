@@ -22,7 +22,7 @@ const DEFAULTS = {
     baseBinSize: null,
     baseBinMtime: null,
   },
-  updates: { enabled: true, repo: '' },
+  updates: { enabled: true, repo: 'miquelGarcia14/rl' },
 };
 
 function deepMerge(base, extra) {

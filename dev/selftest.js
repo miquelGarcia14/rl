@@ -77,7 +77,7 @@ ok('MMR calculado', last && Number.isInteger(last.mmr) && last.playlistName && l
     '[0402.10] Matchmaking: Post-divide PartyLeaderMMR: 70.0000',
     '[0402.10] Matchmaking: PartyLeaderTier=(19)',
     '[0300.00] Log: LoadMap: Stadium_P?Game=TAGame.GameInfo_Soccar_TA?GameTags=Freeplay',
-    '[0450.00] Log: LoadMap: 18.202.167.33:7777/Farm_GRS_P?Name=maiquel_14?game=TAGame.GameInfo_Soccar_TA',
+    '[0450.00] Log: LoadMap: 18.202.167.33:7777/Farm_GRS_P?Name=Jugador?game=TAGame.GameInfo_Soccar_TA',
     '[0800.00] Log: Fully load package: ..\\..\\TAGame\\CookedPCConsole\\GFX_EndGameMenu_SF.upk',
     '[0900.00] Online: TryToPlayOnlineWithAntiCheat ControllerID=(-1) PlaylistId=(11)',
     '[0902.00] Matchmaking: Post-divide PartyLeaderMMR: 70.4500',
@@ -107,7 +107,7 @@ if (fs.existsSync(one)) {
   ok('parser incremental == parseFile', evs.length === ref.length, `${evs.length} vs ${ref.length}`);
 }
 
-// --- calibracion MMR (puntos reales de Miquel, 2026-09-14) ---
+// --- calibracion MMR (tres puntos reales de un jugador, 2026-09-14) ---
 {
   const { fitModel } = require('../main/logwatch');
   const pts = [{ playlist: 10, raw: 23.907, real: 981 }, { playlist: 11, raw: 69.150, real: 1495 }, { playlist: 13, raw: 48.951, real: 1258 }];

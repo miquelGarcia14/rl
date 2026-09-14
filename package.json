@@ -1,7 +1,9 @@
 {
   "name": "rl-panel",
   "productName": "RL Panel",
-  "version": "0.1.2",
+  "version": "0.1.3",
+  "repository": { "type": "git", "url": "https://github.com/miquelGarcia14/rl.git" },
+  "homepage": "https://github.com/miquelGarcia14/rl",
   "description": "Panel para Rocket League (Epic, EAC activado): overlay con la Stats API oficial, lanzador dual e historial de MMR. No toca el proceso del juego.",
   "main": "main/main.js",
   "author": "Miquel",
@@ -36,6 +38,6 @@
       "shortcutName": "RL Panel",
       "installerLanguages": ["es_ES", "en_US"]
     },
-    "publish": null
+    "publish": { "provider": "github", "owner": "miquelGarcia14", "repo": "rl" }
   }
 }
