@@ -1,7 +1,7 @@
 {
   "name": "rl-panel",
   "productName": "RL Panel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Panel para Rocket League (Epic, EAC activado): overlay con la Stats API oficial, lanzador dual e historial de MMR. No toca el proceso del juego.",
   "main": "main/main.js",
   "author": "Miquel",

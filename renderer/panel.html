@@ -104,7 +104,7 @@
       <button class="btn orange" id="btnNoEac">Entrenar sin EAC<small>Modo oficial de Psyonix: entrenamiento, offline, LAN, repeticiones y mods (BakkesMod).</small></button>
     </div>
     <div class="card" style="margin-top:14px"><h3>Cómo funciona</h3>
-      <p>Epic guarda unos <b>argumentos adicionales</b> por juego (los mismos que puedes escribir en Biblioteca → Rocket League → Gestionar). El panel añade <code>-noeac</code> ahí solo durante el arranque, pide a Epic que abra el juego con su enlace oficial y luego restaura tus argumentos. El modo real se lee del propio log del juego (<code>EAC: bAntiCheatEnabled</code>).</p>
+      <p>Epic guarda unos <b>argumentos adicionales</b> por juego (los mismos que puedes escribir en Biblioteca → Rocket League → Gestionar) y solo los relee al arrancar. Para "Entrenar sin EAC" el panel <b>cierra el launcher de Epic</b>, añade <code>-noeac</code>, pide a Epic que abra el juego con su enlace oficial y, cuando el juego ya corre, restaura tus argumentos y <b>reinicia el launcher</b> para que todo quede como estaba (unos 15 s en total). El modo real se lee del propio log del juego (<code>EAC: bAntiCheatEnabled</code>).</p>
       <div class="kv"><b>Tus argumentos</b><span id="addCmds">—</span><b>Estado</b><span id="launchState">—</span></div>
       <pre class="log" id="launchLog"></pre>
       <p class="note">Si Epic ignora el cambio, la alternativa manual es: Epic → Rocket League → menú "···" → <b>Play without Easy Anti-Cheat</b>.</p>

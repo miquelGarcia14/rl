@@ -13,7 +13,7 @@ lectura de memoria ni hooks. Solo usa:
 | Función | Cómo |
 |---|---|
 | **Overlay** con marcador, reloj, tu boost y velocidad, goles y eventos | Página HTML que se conecta a `ws://127.0.0.1:49124` (Stats API). Ventana flotante transparente o **fuente Navegador de OBS** (archivo local, fondo transparente). |
-| **Lanzador dual**: *Jugar online (EAC)* / *Entrenar sin EAC* | Enlace oficial `com.epicgames.launcher://…` y el argumento `-noeac` (modo oficial de Psyonix para offline/entrenamiento/mods) añadido temporalmente a los *argumentos adicionales* de Epic. El modo real se verifica leyendo `EAC: bAntiCheatEnabled` del log del juego. |
+| **Lanzador dual**: *Jugar online (EAC)* / *Entrenar sin EAC* | Enlace oficial `com.epicgames.launcher://…` y el argumento `-noeac` (modo oficial de Psyonix para offline/entrenamiento/mods) añadido temporalmente a los *argumentos adicionales* de Epic. Como Epic solo relee esos argumentos al arrancar, el panel **cierra y reinicia el launcher de Epic** (unos 15 s) y deja tus argumentos como estaban. El modo real se verifica leyendo `EAC: bAntiCheatEnabled` del log del juego. |
 | **Historial de MMR** por playlist | Lee `PartyLeaderMMR` y `PartyLeaderTier` de `Launch.log` cada vez que entras en cola. Persistente (los logs del juego se purgan solos). Calibración configurable (por defecto MMR = valor × 20). |
 | Activar la Stats API | Escribe `PacketSendRate` en `TAStatsAPI.ini` (requiere reiniciar el juego). |
 

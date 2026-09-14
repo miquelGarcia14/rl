@@ -134,6 +134,44 @@ async function detect() {
   return { running, mode, eacFlag: flag.eac, logFresh: !!fresh, version: flag.version };
 }
 
+// ---- launcher de Epic (proceso) ----
+// Epic solo lee GameUserSettings.ini al arrancar: para que aplique un cambio de argumentos hay que
+// cerrarlo antes de lanzar y, tras restaurar el fichero, reiniciarlo para que su memoria coincida con el disco.
+const EGL_EXE_DEFAULT = 'C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win64\\EpicGamesLauncher.exe';
+
+function ps(cmd) {
+  return new Promise((resolve) => {
+    execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', cmd], { windowsHide: true, timeout: 20000 }, (err, out) => resolve(err ? '' : String(out || '').trim()));
+  });
+}
+
+async function launcherProc() {
+  const out = await ps("Get-Process EpicGamesLauncher -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path");
+  return { running: !!out, path: out || EGL_EXE_DEFAULT };
+}
+
+async function stopLauncher(progress) {
+  const p = await launcherProc();
+  if (!p.running) return p;
+  // SIN /T: el juego es descendiente del launcher (EpicGamesLauncher -> Launcher.exe -> RocketLeague.exe) y
+  // matar el arbol lo cerraria. Los hijos sobreviven al padre; los ayudantes web se cierran por nombre.
+  const kill = (img) => new Promise((resolve) => execFile('taskkill', ['/IM', img, '/F'], { windowsHide: true }, () => resolve()));
+  await kill('EpicGamesLauncher.exe');
+  await kill('EpicWebHelper.exe');
+  const t0 = Date.now();
+  while (Date.now() - t0 < 15000) { if (!(await launcherProc()).running) break; await sleep(500); }
+  if (progress) progress({ step: 'Launcher de Epic cerrado' });
+  return p;
+}
+
+function startLauncher(exePath) {
+  try {
+    const child = spawn(exePath || EGL_EXE_DEFAULT, ['-silent'], { detached: true, stdio: 'ignore', windowsHide: true });
+    child.unref();
+    return true;
+  } catch (e) { return false; }
+}
+
 function defaultOpen(uri) {
   return new Promise((resolve, reject) => {
     const p = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', `Start-Process '${uri.replace(/'/g, "''")}'`],
@@ -179,25 +217,31 @@ async function launch(mode, opts = {}) {
   const uri = launchUri(m);
   const before = readEacFlag().mtime || 0;
   let saved = null;
+  let launcherPath = EGL_EXE_DEFAULT;
+  let restartLauncherAfter = false;
   try {
     if (mode === 'noeac') {
       const cur = getAdditionalCommands(m);
       if (!cur.exists) return { ok: false, mode: 'none', message: 'No encuentro GameUserSettings.ini del launcher de Epic.', steps };
       saved = { enabled: cur.enabled, commands: cur.commands };
       const cmds = (stripFlag(cur.commands, '-noeac') + ' -noeac').trim();
+      // Epic solo relee el fichero al arrancar: cerrarlo antes de escribir/lanzar
+      const lp = await stopLauncher(progress); launcherPath = lp.path;
       setAdditionalCommands(m, { enabled: true, commands: cmds });
       say(`Argumentos adicionales de Epic: "${cmds}" (temporal)`);
+      restartLauncherAfter = true;
     } else {
       const cur = getAdditionalCommands(m);
       if (cur.exists && /-noeac\b/i.test(cur.commands)) {
+        const lp = await stopLauncher(progress); launcherPath = lp.path;
         setAdditionalCommands(m, { enabled: cur.enabled, commands: stripFlag(cur.commands, '-noeac') });
-        say('Quitado un -noeac que habia quedado de antes');
+        say('Quitado un -noeac que habia quedado de antes (launcher reiniciado para que lo aplique)');
       }
     }
     say('Pidiendo al launcher de Epic que arranque Rocket League...');
     await open(uri);
-    const started = await waitForGame(120000, progress);
-    if (!started) return { ok: false, mode: 'none', message: 'El juego no ha arrancado en 2 minutos. Esta abierto el launcher de Epic y con sesion iniciada?', steps };
+    const started = await waitForGame(180000, progress);
+    if (!started) return { ok: false, mode: 'none', message: 'El juego no ha arrancado en 3 minutos. Esta el launcher de Epic con sesion iniciada?', steps };
     say('RocketLeague.exe en marcha; leyendo el log del juego...');
     const flag = await waitForEacFlag(45000, before);
     const real = flag.eac === false ? 'noeac' : flag.eac === true ? 'eac' : 'unknown';
@@ -216,7 +260,11 @@ async function launch(mode, opts = {}) {
     if (saved) {
       try { setAdditionalCommands(m, saved); say(`Argumentos adicionales de Epic restaurados: "${saved.commands}"`); } catch (e) { say('AVISO: no pude restaurar los argumentos adicionales: ' + e.message); }
     }
+    if (restartLauncherAfter) {
+      // el launcher que acaba de lanzar el juego tiene -noeac en memoria: reiniciarlo para que coincida con el disco
+      try { await stopLauncher(progress); startLauncher(launcherPath); say('Launcher de Epic reiniciado con tus argumentos originales'); } catch (e) { say('AVISO: no pude reiniciar el launcher de Epic: ' + e.message); }
+    }
   }
 }
 
-module.exports = { findManifest, launchUri, getAdditionalCommands, setAdditionalCommands, stripFlag, isRunning, readEacFlag, detect, launch, MANIFESTS, EGL_INI, RL_LOG };
+module.exports = { findManifest, launchUri, getAdditionalCommands, setAdditionalCommands, stripFlag, isRunning, readEacFlag, detect, launch, launcherProc, stopLauncher, startLauncher, MANIFESTS, EGL_INI, RL_LOG, EGL_EXE_DEFAULT };
