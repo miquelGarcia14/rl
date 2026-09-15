@@ -8,12 +8,17 @@ const DEFAULTS = {
   minimizeToTray: true,
   autostart: false,
   overlay: {
-    show: ['score', 'clock', 'player', 'feed'],
+    show: ['score', 'clock', 'player', 'feed', 'record'],
     scale: 1,
     bg: 0,
     clickthrough: true,
+    autofit: true,
+    recordScope: 'sesion', // 'sesion' | 'hoy'
     bounds: { x: 40, y: 40, width: 560, height: 240 },
   },
+  shortcuts: { toggleOverlay: 'Control+Alt+O' },
+  matches: { myId: null, gapMin: 90 },
+  ui: { onboardingDone: false, overlayPlaced: false, schema: 0 },
   mmr: { factor: 20, offset: 0, points: [] },
   statsApi: { wsUrl: 'ws://127.0.0.1:49124', preferredRate: 10 },
   swap: {

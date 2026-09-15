@@ -59,7 +59,8 @@ function fitModel(points, factor = 20, offset = 0) {
   const groups = {};
   for (const p of pts) (groups[p.playlist] = groups[p.playlist] || []).push(p.real - (a * p.raw + b));
   for (const [pl, res] of Object.entries(groups)) perPlaylist[pl] = res.reduce((s, r) => s + r, 0) / res.length;
-  return { a, b, n, method, perPlaylist };
+  // calibrated=false => los MMR que devolvemos son una ESTIMACION sin ningun dato real del jugador
+  return { a, b, n, method, perPlaylist, calibrated: n > 0 };
 }
 
 class SessionParser {

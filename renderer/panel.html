@@ -38,6 +38,18 @@
   label.chk { display: flex; gap: 8px; align-items: center; cursor: pointer; }
   .note { color: var(--mute); font-size: 12px; margin-top: 8px; }
   .banner { background: #2a2113; border: 1px solid #5a4a1c; color: var(--warn); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; }
+  .banner.info { background: #131f2e; border-color: #24456b; color: #a8c6ea; }
+  .banner .row { margin-top: 8px; }
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; }
+  .step .mark { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--mute); }
+  .step.done .mark { border-color: var(--ok); color: var(--ok); }
+  .step .txt small { display: block; color: var(--mute); font-size: 12px; }
+  .wl { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .wl .w { color: var(--ok); } .wl .l { color: var(--bad); } .wl i { opacity: .4; font-style: normal; margin: 0 4px; }
+  .sublabel { color: var(--mute); font-size: 12px; }
+  .tagw { color: var(--ok); font-weight: 700; } .tagl { color: var(--bad); font-weight: 700; } .tagx { color: var(--mute); }
+  .approx { color: var(--mute); font-weight: 400; }
   svg.chart { width: 100%; height: 180px; background: #0b0e14; border-radius: 10px; border: 1px solid var(--line); }
   .hidden { display: none !important; }
 </style>
@@ -46,6 +58,7 @@
 <nav>
   <div class="brand"><img src="assets/icon.png" alt=""> RL Panel</div>
   <button data-tab="estado" class="active">Estado</button>
+  <button data-tab="partidas">Partidas</button>
   <button data-tab="overlay">Overlay</button>
   <button data-tab="lanzador">Lanzador</button>
   <button data-tab="mmr">Historial MMR</button>
@@ -59,6 +72,21 @@
 
   <section id="tab-estado" class="active">
     <h1>Estado</h1><p class="sub">Qué está pasando ahora mismo.</p>
+    <div class="card hidden" id="cardSetup" style="margin-bottom:14px">
+      <h3>Primeros pasos</h3>
+      <div class="steps">
+        <div class="step" id="step1"><span class="mark">1</span>
+          <span class="txt"><b>Activar la Stats API del juego</b><small>Es de Psyonix y viene apagada. Sin ella no hay marcador, ni boost, ni registro de partidas. Hay que reiniciar Rocket League después.</small></span>
+          <button class="btn" data-rate="10">Activar a 10 Hz</button></div>
+        <div class="step" id="step2"><span class="mark">2</span>
+          <span class="txt"><b>Decir tu MMR real una vez</b><small>El juego escribe en su log un número interno que <b>no</b> es el MMR que ves. Hasta que le des un valor real, el historial muestra una estimación.</small></span>
+          <button class="btn" data-goto="mmr">Calibrar</button></div>
+        <div class="step" id="step3"><span class="mark">3</span>
+          <span class="txt"><b>Colocar el overlay</b><small>Ábrelo y arrástralo donde quieras. Rocket League debe estar en <b>ventana sin bordes</b> para que se vea encima.</small></span>
+          <button class="btn" data-goto="overlay">Colocar</button></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="btnSetupDone">No mostrar más</button><span class="note" id="setupNote"></span></div>
+    </div>
     <div class="grid">
       <div class="card"><h3>Rocket League</h3>
         <div class="kv"><b>Proceso</b><span id="gameRun">—</span><b>Anticheat</b><span id="gameMode">—</span><b>Build</b><span id="gameVer">—</span><b>Epic</b><span id="epicVer">—</span></div>
@@ -68,10 +96,41 @@
         <div class="row" style="margin-top:10px"><span class="note">Activar/ajustar (requiere reiniciar el juego):</span>
           <button class="btn" data-rate="10">10 Hz</button><button class="btn" data-rate="30">30 Hz</button><button class="btn" data-rate="0">Apagar</button></div>
       </div>
+      <div class="card"><h3>Partidas</h3>
+        <div class="kv"><b>Hoy</b><span id="stHoy">—</span><b>Sesión</b><span id="stSesion">—</span><b>Registradas</b><span id="stTotal">—</span></div>
+      </div>
       <div class="card"><h3>Historial MMR</h3>
-        <div class="kv"><b>Colas registradas</b><span id="mmrCount">—</span><b>Última</b><span id="mmrLast">—</span></div>
+        <div class="kv"><b>Colas registradas</b><span id="mmrCount">—</span><b>Última</b><span id="mmrLast">—</span><b>Calibración</b><span id="mmrCalState">—</span></div>
       </div>
       <div class="card" id="cardSwapMini"><h3>Alpha Boost (personal)</h3><div id="swapMini">—</div></div>
+    </div>
+  </section>
+
+  <section id="tab-partidas">
+    <h1>Partidas</h1><p class="sub">Cada partida que juegas con la Stats API activa queda guardada: resultado, tus estadísticas y, cuando se puede, el MMR que ganaste o perdiste.</p>
+    <div class="banner info hidden" id="partidasAviso"></div>
+    <div class="grid" style="margin-bottom:14px">
+      <div class="card"><h3>Hoy</h3>
+        <div class="wl"><span class="w" id="hoyW">0</span><i>-</i><span class="l" id="hoyL">0</span></div>
+        <div class="sublabel" id="hoySub">—</div>
+      </div>
+      <div class="card"><h3>Sesión actual</h3>
+        <div class="wl"><span class="w" id="sesW">0</span><i>-</i><span class="l" id="sesL">0</span></div>
+        <div class="sublabel" id="sesSub">—</div>
+      </div>
+      <div class="card"><h3>Total</h3>
+        <div class="wl"><span class="w" id="totW">0</span><i>-</i><span class="l" id="totL">0</span></div>
+        <div class="sublabel" id="totSub">—</div>
+      </div>
+      <div class="card"><h3>¿Cuál eres tú?</h3>
+        <div class="row"><select id="meSel" style="flex:1"></select></div>
+        <p class="note" id="meNote">Se detecta solo (la cámara del juego te sigue a ti). Si alguna partida sale con el resultado cambiado, elígete aquí y se recalculan todas.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><h3>Por playlist</h3><div id="porPlaylist" class="note">Sin partidas todavía.</div></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><span>Playlist</span><select id="partPlaylist"></select><span style="flex:1"></span><button class="btn" id="btnClearMatches">Borrar historial de partidas</button></div>
+      <table><thead><tr><th>Fecha</th><th>Playlist</th><th>Resultado</th><th class="num">Marcador</th><th class="num">Tus stats</th><th class="num">MMR</th><th class="num">Duración</th></tr></thead><tbody id="partRows"></tbody></table>
     </div>
   </section>
 
@@ -80,13 +139,18 @@
     <div class="grid">
       <div class="card"><h3>Ventana flotante</h3>
         <p>Una ventana transparente siempre encima del juego. Funciona con Rocket League en <b>ventana sin bordes</b> (en pantalla completa exclusiva Windows no dibuja nada encima).</p>
-        <div class="row"><button class="btn primary" id="btnOverlay">Mostrar / ocultar ventana</button>
-          <label class="chk"><input type="checkbox" id="chkClick"> Atravesar clics (no bloquea el ratón)</label></div>
-        <div class="row" style="margin-top:10px"><span>Escala</span><input type="number" id="ovScale" min="0.5" max="3" step="0.1" style="width:80px">
-          <label class="chk"><input type="checkbox" id="showScore" checked> Marcador</label>
-          <label class="chk"><input type="checkbox" id="showPlayer" checked> Tu boost/velocidad</label>
-          <label class="chk"><input type="checkbox" id="showFeed" checked> Goles y eventos</label></div>
-        <p class="note">Cambios de escala/contenido se aplican al volver a abrir la ventana.</p>
+        <div class="row"><button class="btn primary" id="btnOverlay">Mostrar / ocultar</button>
+          <button class="btn" id="btnPlace">Colocar en pantalla</button>
+          <span class="note" id="ovShortcutHint"></span></div>
+        <div class="row" style="margin-top:10px"><span>Tamaño</span><input type="range" id="ovScale" min="0.5" max="2.5" step="0.05" style="width:160px"><span id="ovScaleVal" class="note">1.00×</span>
+          <label class="chk"><input type="checkbox" id="chkClick"> Atravesar clics</label></div>
+        <div class="row" style="margin-top:10px">
+          <label class="chk"><input type="checkbox" id="showScore"> Marcador</label>
+          <label class="chk"><input type="checkbox" id="showPlayer"> Tu boost/velocidad</label>
+          <label class="chk"><input type="checkbox" id="showFeed"> Goles y eventos</label>
+          <label class="chk"><input type="checkbox" id="showRecord"> Victorias-derrotas</label>
+          <select id="ovScope" style="width:110px"><option value="sesion">de la sesión</option><option value="hoy">de hoy</option></select></div>
+        <p class="note"><b>Colocar en pantalla</b> muestra el overlay con datos de ejemplo y una barra para arrastrarlo; el tamaño se ve en directo mientras mueves la barra. La ventana se ajusta sola al contenido. Todo se aplica al momento, sin cerrar nada.</p>
       </div>
       <div class="card"><h3>OBS Studio</h3>
         <p>Añade una fuente <b>Navegador</b> → marca <b>Archivo local</b> → elige este fichero. Fondo transparente automático. Tamaño recomendado 1920×1080 (o el que quieras, la escala se ajusta arriba).</p>
@@ -113,6 +177,11 @@
 
   <section id="tab-mmr">
     <h1>Historial de MMR</h1><p class="sub">Leído del log del juego cada vez que entras en cola (por eso el resultado de una partida aparece al hacer la <i>siguiente</i> cola).</p>
+    <div class="banner hidden" id="calibAviso">
+      <b>Estos MMR son una estimación, no tu MMR real.</b> El juego solo escribe en el log un número interno suyo; la conversión a
+      MMR depende de cada cuenta. Los <b>cambios</b> (la columna Δ) sí son fiables desde el principio.
+      <div class="row"><span class="note">Para arreglarlo: elige una playlist abajo, mira tu MMR real en el juego (Ajustes → Interfaz → <i>Mostrar MMR</i>, o en tu perfil) y escríbelo.</span></div>
+    </div>
     <div class="card" style="margin-bottom:14px">
       <div class="row"><span>Playlist</span><select id="mmrPlaylist"></select><span class="spacer" style="flex:1"></span>
         <span>Tu MMR real ahora en esta playlist:</span><input type="number" id="calReal" step="1" style="width:90px" placeholder="p.ej. 1495"><button class="btn primary" id="btnCalib">Calibrar</button><button class="btn" id="btnClearCal">Borrar calibración</button><button class="btn" id="btnRescan">Releer logs</button></div>
@@ -145,6 +214,12 @@
         <label class="chk"><input type="checkbox" id="setTray"> Al cerrar, quedarse en la bandeja</label>
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="setAutostart"> Arrancar con Windows (oculto)</label>
       </div>
+      <div class="card"><h3>Atajo de teclado</h3>
+        <p class="note" style="margin-top:0">Mostrar u ocultar el overlay sin salir del juego. Funciona aunque Rocket League tenga el foco.</p>
+        <div class="row"><input type="text" id="setShortcut" placeholder="pulsa aquí y teclea la combinación" readonly style="flex:1">
+          <button class="btn" id="btnShortcutClear">Quitar</button></div>
+        <div class="note" id="shortcutState">—</div>
+      </div>
       <div class="card"><h3>Actualizaciones</h3>
         <div class="kv"><b>Versión</b><span id="setVer">—</span><b>Repositorio</b><input type="text" id="setRepo" placeholder="usuario/repositorio (GitHub Releases)"></div>
         <div class="row" style="margin-top:10px"><button class="btn" id="btnSaveRepo">Guardar</button><button class="btn" id="btnCheckUpd">Buscar actualizaciones</button><span id="updStatus" class="note"></span></div>
@@ -155,7 +230,6 @@
     </div>
   </section>
 </main>
-<script src="shared/statsclient.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>

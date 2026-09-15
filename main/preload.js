@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const invoke = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
-const ALLOWED_EVENTS = new Set(['mmr:event', 'swap:progress', 'launcher:progress', 'updater:status', 'state:changed']);
+const ALLOWED_EVENTS = new Set(['mmr:event', 'swap:progress', 'launcher:progress', 'updater:status', 'state:changed', 'stats:live', 'matches:changed']);
 
 contextBridge.exposeInMainWorld('rlpanel', {
   version: () => invoke('app:version'),
@@ -15,10 +15,15 @@ contextBridge.exposeInMainWorld('rlpanel', {
   setCalib: (calib) => invoke('mmr:setCalib', calib),
   addPoint: (playlist, real) => invoke('mmr:addPoint', playlist, real),
   clearPoints: () => invoke('mmr:clearPoints'),
+  matches: () => invoke('matches:get'),
+  setMe: (id) => invoke('matches:setMe', id),
+  clearMatches: () => invoke('matches:clear'),
   swapReapply: () => invoke('swap:reapply'),
   swapSetBaseline: () => invoke('swap:baseline'),
-  overlayToggle: (opts) => invoke('overlay:toggle', opts),
+  overlayToggle: (force) => invoke('overlay:toggle', force),
+  overlayEdit: (on) => invoke('overlay:edit', on),
   overlayPaths: () => invoke('overlay:paths'),
+  setShortcut: (acc) => invoke('shortcuts:set', acc),
   config: (key) => invoke('config:get', key),
   setConfig: (key, value) => invoke('config:set', key, value),
   copy: (text) => invoke('clipboard:write', text),

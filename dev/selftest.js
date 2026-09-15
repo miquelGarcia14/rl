@@ -119,6 +119,54 @@ if (fs.existsSync(one)) {
   ok('fitModel: 1 punto = pendiente 20 + offset', one.method === 'offset' && Math.round(one.a * 69.150 + one.b) === 1495);
   ok('fitModel: sin puntos = defecto', fitModel([], 20, 0).method === 'defecto' && fitModel([], 20, 0).a === 20);
 }
+// --- stats: registro de partidas desde la Stats API ---
+{
+  const { Stats, summary, agg, groupSessions, candidates } = require('../main/stats');
+  const s = new Stats({ storeFile: path.join(tmp, 'matches.json') });
+  const players = (goles) => [
+    { PrimaryId: 'me', Name: 'Yo', TeamNum: 0, Score: 300, Goals: goles, Assists: 1, Saves: 2, Shots: 4, Boost: 50, Speed: 60 },
+    { PrimaryId: 'riv', Name: 'Rival', TeamNum: 1, Score: 150, Goals: 1, Assists: 0, Saves: 1, Shots: 3, Boost: 30, Speed: 40 },
+  ];
+  const upd = (goles) => s._apply('UpdateState', {
+    Game: { PlaylistId: 11, Arena: 'Stadium_P', Target: { Name: 'Yo', TeamNum: 0 }, Teams: [{ TeamNum: 0, Score: goles }, { TeamNum: 1, Score: 1 }] },
+    Players: players(goles),
+  });
+  s._apply('MatchCreated', {}); upd(0); upd(1); upd(3);
+  s._apply('MatchEnded', { WinnerTeamNum: 0 });
+  const m0 = s.list()[0];
+  ok('stats: partida registrada con resultado y jugador propio', s.list().length === 1 && m0.result === 'victoria' && m0.me.id === 'me' && m0.playlist === 11 && m0.score[0] === 3 && m0.playlistName === 'Ranked 2v2', JSON.stringify({ n: s.list().length, r: m0 && m0.result, me: m0 && m0.me && m0.me.id }));
+  ok('stats: stats del jugador copiadas', m0.me.Goals === 3 && m0.me.Saves === 2 && m0.me.Shots === 4 && !('Boost' in m0.me), JSON.stringify(m0.me));
+  // freeplay no es una partida
+  s._apply('MatchCreated', {});
+  s._apply('UpdateState', { Game: { PlaylistId: 9, Teams: [] }, Players: players(0) });
+  s._apply('MatchEnded', { WinnerTeamNum: 0 });
+  ok('stats: freeplay no se registra', s.list().length === 1, `n=${s.list().length}`);
+  // abandonar en menos de un minuto tampoco
+  s._apply('MatchCreated', {}); upd(0); s._apply('MatchDestroyed', {});
+  ok('stats: salida inmediata no se registra', s.list().length === 1, `n=${s.list().length}`);
+  // fijar quien eres reetiqueta lo ya guardado
+  s.setMe('riv');
+  ok('stats: setMe recalcula resultados guardados', s.list()[0].result === 'derrota' && s.list()[0].me.id === 'riv' && s.list()[0].meAuto === false);
+  s.setMe('me');
+  ok('stats: candidatos para elegir jugador', candidates(s.list()).map((c) => c.id).sort().join(',') === 'me,riv');
+  // el almacen persiste
+  ok('stats: persiste en disco', new Stats({ storeFile: path.join(tmp, 'matches.json') }).list().length === 1);
+  s.stop();
+
+  // agregados puros
+  const mk = (t, result, mmr) => ({ startedAt: new Date(t).toISOString(), endedAt: new Date(t + 5 * 60000).toISOString(), result, playlist: 11, me: { Goals: 1, Assists: 0, Saves: 1, Shots: 2, Score: 200 }, mmrDelta: mmr });
+  const T = new Date(2026, 8, 15, 18, 0, 0).getTime();
+  const set = [mk(T, 'victoria', 9), mk(T + 20 * 60000, 'victoria', 8), mk(T + 40 * 60000, 'derrota', -9), mk(T - 6 * 3600000, 'victoria', 10)];
+  ok('stats: groupSessions corta por pausas largas', groupSessions(set, 90).length === 2, JSON.stringify(groupSessions(set, 90).map((g) => g.items.length)));
+  const a = agg([set[0], set[1], set[2]]);
+  ok('stats: agg suma y calcula la racha actual', a.n === 3 && a.v === 2 && a.d === 1 && a.racha === -1 && a.mmr === 8 && a.goles === 3, JSON.stringify(a));
+  ok('stats: agg racha de victorias', agg([set[2], set[0], set[1]]).racha === 2, String(agg([set[2], set[0], set[1]]).racha));
+  const sum = summary(set, { now: T + 45 * 60000, gapMin: 90 });
+  ok('stats: summary separa sesion en curso y dia', sum.sesion.n === 3 && sum.sesion.v === 2 && sum.total.n === 4 && sum.hoy.n === 4 && sum.porPlaylist[0].playlist === 11, JSON.stringify({ ses: sum.sesion.n, tot: sum.total.n, hoy: sum.hoy.n }));
+  const viejo = summary(set, { now: T + 10 * 3600000, gapMin: 90 });
+  ok('stats: sin sesion en curso si hace horas que no juegas', viejo.sesion.n === 0 && viejo.sesionDesde === null);
+}
+
 // --- swaplayer ---
 const sw = swap.status(DEFAULTS.swap);
 ok('swap status', sw.available === true && typeof sw.installed === 'boolean' && sw.baseBin && sw.baseBin.size > 0, JSON.stringify({ installed: sw.installed, isOriginal: sw.isOriginal, baseBin: sw.baseBin && sw.baseBin.size }));
