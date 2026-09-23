@@ -18,6 +18,7 @@ lectura de memoria ni hooks. Solo usa:
 | **Registro de partidas**: resultado, marcador, tus goles/asistencias/paradas/tiros, duración y el MMR ganado o perdido | Escucha la Stats API mientras el panel está abierto (basta con que esté en la bandeja) y guarda cada partida. Agrupa por **hoy**, **sesión** (corta tras hora y media sin jugar) y **total**, con racha y porcentaje por playlist. El ±MMR se cruza con el log del juego. |
 | **Lanzador dual**: *Jugar online (EAC)* / *Entrenar sin EAC* | Enlace oficial `com.epicgames.launcher://…` y el argumento `-noeac` (modo oficial de Psyonix para offline/entrenamiento/mods) añadido temporalmente a los *argumentos adicionales* de Epic. Como Epic solo relee esos argumentos al arrancar, el panel **cierra y reinicia el launcher de Epic** (unos 15 s) y deja tus argumentos como estaban. El modo real se verifica leyendo `EAC: bAntiCheatEnabled` del log del juego. |
 | **Historial de MMR** por playlist | Lee `PartyLeaderMMR` y `PartyLeaderTier` de `Launch.log` cada vez que entras en cola. Persistente (los logs del juego se purgan solos). |
+| **Colores del coche** (capa personal, no se distribuye) | Pestaña *Personal*: fija el color del **cuerpo**, del **accesorio** y de las **molduras** de cada coche, con la paleta oficial del juego. Solo aparece si tienes las herramientas locales. |
 | Activar la Stats API | Escribe `PacketSendRate` en `TAStatsAPI.ini` (requiere reiniciar el juego). |
 
 ### Sobre el MMR: hay que calibrarlo una vez

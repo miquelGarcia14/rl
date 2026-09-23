@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const invoke = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
-const ALLOWED_EVENTS = new Set(['mmr:event', 'swap:progress', 'launcher:progress', 'updater:status', 'state:changed', 'stats:live', 'matches:changed']);
+const ALLOWED_EVENTS = new Set(['mmr:event', 'swap:progress', 'launcher:progress', 'updater:status', 'state:changed', 'stats:live', 'matches:changed', 'color:progress']);
 
 contextBridge.exposeInMainWorld('rlpanel', {
   version: () => invoke('app:version'),
@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('rlpanel', {
   clearMatches: () => invoke('matches:clear'),
   swapReapply: () => invoke('swap:reapply'),
   swapSetBaseline: () => invoke('swap:baseline'),
+  colorEstado: () => invoke('color:estado'),
+  colorSet: (i, parametro, valor) => invoke('color:set', i, parametro, valor),
+  colorAplicar: () => invoke('color:aplicar'),
+  colorRestaurar: () => invoke('color:restaurar'),
   overlayToggle: (force) => invoke('overlay:toggle', force),
   overlayEdit: (on) => invoke('overlay:edit', on),
   overlayPaths: () => invoke('overlay:paths'),

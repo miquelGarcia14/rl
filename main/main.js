@@ -7,6 +7,7 @@ const launcher = require('./launcher');
 const statsini = require('./statsini');
 const { LogWatch } = require('./logwatch');
 const swap = require('./swaplayer');
+const bodycolor = require('./bodycolor');
 const { Stats, summary } = require('./stats');
 
 log.transports.file.level = 'info';
@@ -236,6 +237,25 @@ function setupIpc() {
     return swap.reapply(cfg.get('swap'), (line) => send('swap:progress', line));
   });
   ipcMain.handle('swap:baseline', () => { const s = swap.status(cfg.get('swap')); if (s.baseBin) { cfg.set('swap.baseBinSize', s.baseBin.size); cfg.set('swap.baseBinMtime', s.baseBin.mtime); } return swap.status(cfg.get('swap')); });
+
+  // --- colores del coche (capa personal) ---
+  ipcMain.handle('color:estado', () => bodycolor.estado(cfg.get('swap')));
+  ipcMain.handle('color:set', (_e, indice, parametro, valor) => {
+    try { bodycolor.setColor(cfg.get('swap'), Number(indice), String(parametro), valor === null ? null : String(valor)); }
+    catch (err) { return { error: err.message }; }
+    return bodycolor.estado(cfg.get('swap'));
+  });
+  ipcMain.handle('color:aplicar', async () => {
+    if (await launcher.isRunning()) return { code: -2, output: 'Rocket League esta abierto. Cierralo del todo y vuelve a intentarlo.' };
+    const r = await bodycolor.ejecutar(cfg.get('swap'), { instalar: true, solo: 'decals' }, (l) => send('color:progress', l));
+    send('state:changed', {});
+    return { ...r, estado: bodycolor.estado(cfg.get('swap')) };
+  });
+  ipcMain.handle('color:restaurar', async () => {
+    if (await launcher.isRunning()) return { error: 'Rocket League esta abierto. Cierralo del todo y vuelve a intentarlo.' };
+    const r = bodycolor.restaurar(cfg.get('swap'));
+    return { ...r, estado: bodycolor.estado(cfg.get('swap')) };
+  });
 
   ipcMain.handle('overlay:toggle', (_e, force) => toggleOverlay(force));
   ipcMain.handle('overlay:edit', (_e, on) => setOverlayEdit(on));

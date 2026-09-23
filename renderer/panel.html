@@ -199,6 +199,17 @@
         <div class="row" style="margin-top:10px"><button class="btn orange" id="btnReapply">Reaplicar (juego cerrado)</button></div>
         <pre class="log" id="swapLog"></pre>
       </div>
+      <div class="card hidden" id="cardColores" style="grid-column:1/-1"><h3>Colores del coche</h3>
+        <p class="note" style="margin-top:0"><b>Cuerpo</b> = lo que normalmente sería el color de equipo (azul/naranja) · <b>Accesorio</b> = alerones y detalles · <b>Molduras</b> = paragolpes, pasos de rueda y faldones, que es lo que cambia un item pintado.</p>
+        <table><thead><tr><th>Qué</th><th>Cuerpo</th><th>Accesorio</th><th>Molduras</th><th>Estado</th></tr></thead><tbody id="colorFilas"></tbody></table>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnColorAplicar">Aplicar al juego</button>
+          <button class="btn" id="btnColorRestaurar">Restaurar originales</button>
+          <span class="note" id="colorEstado"></span>
+        </div>
+        <p class="note">Hay que tener <b>Rocket League cerrado</b>. Cada cambio se regenera desde los ficheros de la versión que tengas instalada y se comprueba antes de copiarlo; si algo no cuadra, no se instala nada.</p>
+        <pre class="log hidden" id="colorLog"></pre>
+      </div>
       <div class="card"><h3>Catálogo de integridad EAC</h3>
         <div class="kv"><b>base.bin</b><span id="baseBin">—</span><b>Referencia</b><span id="baseRef">—</span></div>
         <p class="note">Si el tamaño cambia de golpe, Psyonix ha tocado el catálogo: revisar antes de jugar online.</p>

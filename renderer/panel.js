@@ -18,6 +18,17 @@
       setRate: async (r) => ({ exists: true, rate: r, port: 49123, webPort: 49124 }), rescan: async () => ({ added: 0, history: await window.rlpanel.history() }),
       setCalib: async () => window.rlpanel.history(), addPoint: async () => ({ history: await window.rlpanel.history() }), clearPoints: async () => window.rlpanel.history(),
       swapReapply: async () => ({ code: 0, output: 'demo' }), swapSetBaseline: async () => ({}),
+      colorEstado: async () => ({ disponible: true, parametros: {}, paleta: [
+        { obj: 'Black_00', label: 'Black', hex: '#414141', valor: '0.05,0.05,0.05,1' },
+        { obj: 'Purple_00', label: 'Purple', hex: '#8800BA', valor: '0.25,0,0.5,1' },
+        { obj: 'Blue_00', label: 'Sky Blue', hex: '#2BBAE6', valor: '0.02,0.5,0.8,1' },
+        { obj: 'White_00', label: 'Titanium White', hex: '#E6E6E6', valor: '0.8,0.8,0.8,1' }], recetas: [
+        { i: 0, nombre: 'Fennec: molduras (item pintado)', pkg: 'body_grain_SF.upk', nota: 'No depende de la calcomanía: es el propio cuerpo.', colores: { TrimColor: '0.02,0.5,0.8,1' }, instalada: true, hayBackup: true },
+        { i: 1, nombre: 'Fennec negro (Bluster Bar)', pkg: 'skin_grain_lines_SF.upk', nota: null, colores: { ForcedTeamColors: '0.05,0.05,0.05,1', ForcedCustomColor: '0.05,0.05,0.05,1' }, instalada: true, hayBackup: true },
+        { i: 2, nombre: 'Fennec morado (Flames)', pkg: 'skin_grain_flames_SF.upk', nota: null, colores: { ForcedTeamColors: '0.25,0,0.5,1', ForcedCustomColor: '0.25,0,0.5,1' }, instalada: false, hayBackup: true },
+        { i: 3, nombre: 'Octane negro TOTAL con molduras (Tech)', pkg: 'Skin_Octane_Tech_SF.upk', nota: 'En Octane las molduras solo llegan desde la calcomanía.', colores: { ForcedTeamColors: '0.05,0.05,0.05,1', ForcedCustomColor: '0.05,0.05,0.05,1', TrimColor: '0.05,0.05,0.05,1' }, instalada: true, hayBackup: true }] }),
+      colorSet: async () => window.rlpanel.colorEstado(), colorAplicar: async () => ({ code: 0, output: 'demo' }),
+      colorRestaurar: async () => ({ hechos: [], fallos: [] }),
       overlayToggle: async () => ({ open: true }), overlayEdit: async () => ({ open: true, edit: true }),
       overlayPaths: async () => ({ file: 'C:\\…\\renderer\\overlay.html', url: 'file:///C:/…/overlay.html?ws=ws://127.0.0.1:49124' }),
       setShortcut: async (a) => ({ accelerator: a, ok: true }),
@@ -293,6 +304,57 @@
   $('btnReapply').addEventListener('click', async () => { $('swapLog').textContent = ''; $('btnReapply').disabled = true; const r = await api.swapReapply(); $('swapLog').textContent += (r.output || '') + `\n[exit ${r.code}]`; $('btnReapply').disabled = false; refreshState(); });
   api.on('swap:progress', (line) => { $('swapLog').textContent += line; $('swapLog').scrollTop = 1e9; });
   $('btnBaseline').addEventListener('click', async () => renderSwap(await api.swapSetBaseline()));
+
+  // --- colores del coche ---
+  let colorState = null;
+  const PARAM_ORDEN = ['ForcedTeamColors', 'ForcedCustomColor', 'TrimColor'];
+
+  function selectorColor(r, parametro) {
+    const actual = r.colores[parametro];
+    const soportado = colorState.recetas[r.i].colores[parametro] !== undefined || parametro !== 'TrimColor' || r.pkg === 'body_grain_SF.upk';
+    if (!soportado && actual === undefined) return '<span class="note">—</span>';
+    const opciones = ['<option value="">(sin fijar)</option>'].concat(colorState.paleta.map((c) =>
+      `<option value="${c.valor}"${c.valor === actual ? ' selected' : ''}>${esc(c.label)}</option>`));
+    const swatch = actual ? (colorState.paleta.find((c) => c.valor === actual) || {}).hex : null;
+    return `<span class="row" style="gap:6px;flex-wrap:nowrap">${swatch ? `<i style="width:14px;height:14px;border-radius:3px;border:1px solid var(--line);background:${swatch};display:inline-block"></i>` : ''}`
+      + `<select data-receta="${r.i}" data-param="${parametro}" style="width:140px">${opciones.join('')}</select></span>`;
+  }
+
+  function renderColores(s) {
+    colorState = s;
+    $('cardColores').classList.toggle('hidden', !s.disponible);
+    if (!s.disponible) return;
+    $('colorFilas').innerHTML = s.recetas.map((r) => {
+      const estado = r.instalada ? pill('puesta', 'ok') : r.hayBackup ? pill('pendiente de aplicar', 'warn') : pill('sin copia del original', 'bad');
+      const nota = r.nota ? `<small class="note" style="display:block">${esc(r.nota)}</small>` : '';
+      return `<tr><td>${esc(r.nombre)}${nota}</td>`
+        + PARAM_ORDEN.map((p) => `<td>${selectorColor(r, p)}</td>`).join('')
+        + `<td>${estado}</td></tr>`;
+    }).join('');
+    $('colorFilas').querySelectorAll('select[data-receta]').forEach((sel) => sel.addEventListener('change', async (e) => {
+      const r = await api.colorSet(Number(e.target.dataset.receta), e.target.dataset.param, e.target.value || null);
+      if (r.error) { $('colorEstado').textContent = r.error; return; }
+      $('colorEstado').textContent = 'Guardado. Pulsa «Aplicar al juego» para que se vea.';
+      renderColores(r);
+    }));
+  }
+
+  $('btnColorAplicar').addEventListener('click', async () => {
+    $('btnColorAplicar').disabled = $('btnColorRestaurar').disabled = true;
+    $('colorLog').classList.remove('hidden'); $('colorLog').textContent = '';
+    $('colorEstado').textContent = 'generando y verificando…';
+    const r = await api.colorAplicar();
+    $('colorEstado').textContent = r.code === 0 ? 'Listo: abre Rocket League y míralo.' : (r.output || '').slice(-200);
+    if (r.estado) renderColores(r.estado);
+    $('btnColorAplicar').disabled = $('btnColorRestaurar').disabled = false;
+  });
+  $('btnColorRestaurar').addEventListener('click', async () => {
+    if (!window.confirm('¿Devolver los ficheros del juego a sus originales? Se puede volver a aplicar cuando quieras.')) return;
+    const r = await api.colorRestaurar();
+    $('colorEstado').textContent = r.error ? r.error : `Restaurados ${r.hechos.length}` + (r.fallos.length ? ` · fallos: ${r.fallos.join(', ')}` : '');
+    if (r.estado) renderColores(r.estado);
+  });
+  api.on('color:progress', (linea) => { const el = $('colorLog'); el.classList.remove('hidden'); el.textContent += linea; el.scrollTop = 1e9; });
   $('setTray').addEventListener('change', (e) => api.setConfig('minimizeToTray', e.target.checked));
   $('setAutostart').addEventListener('change', (e) => api.setConfig('autostart', e.target.checked));
   $('btnSaveRepo').addEventListener('click', () => api.setConfig('updates.repo', $('setRepo').value.trim()));
@@ -303,6 +365,6 @@
   api.on('matches:changed', () => refreshMatches());
   api.on('mmr:event', () => refreshHistory());
 
-  refreshState().then(() => refreshHistory()).then(() => refreshMatches());
+  refreshState().then(() => refreshHistory()).then(() => refreshMatches()).then(async () => renderColores(await api.colorEstado()));
   setInterval(refreshState, 15000);
 })();

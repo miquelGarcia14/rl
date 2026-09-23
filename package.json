@@ -1,20 +1,47 @@
 {
   "name": "rl-panel",
   "productName": "RL Panel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/miquelGarcia14/rl.git"
   },
   "homepage": "https://github.com/miquelGarcia14/rl",
-  "description": "Panel para Rocket League (Epic, EAC activado): overlay con la Stats API oficial, lanzador dual e historial de MMR. No toca el proceso del juego.",
+  "description": "Panel para Rocket League (Epic, EAC activado): overlay con la Stats API oficial, registro de partidas, lanzador dual e historial de MMR. No toca el proceso del juego.",
   "main": "main/main.js",
   "author": "Miquel",
   "license": "MIT",
   "private": true,
+  "scripts": {
+    "start": "electron .",
+    "replay": "node dev/replay-server.js",
+    "test": "node dev/selftest.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
   "dependencies": {
     "electron-log": "^5.4.0",
     "electron-updater": "^6.6.0",
     "ws": "^8.18.0"
+  },
+  "build": {
+    "appId": "es.miquel.rlpanel",
+    "productName": "RL Panel",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main/**", "renderer/**", "package.json"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.png" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "RL Panel",
+      "installerLanguages": ["es_ES", "en_US"]
+    },
+    "publish": { "provider": "github", "owner": "miquelGarcia14", "repo": "rl" }
   }
 }
