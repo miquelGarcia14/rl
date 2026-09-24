@@ -30,15 +30,23 @@ function disponible(cfg) {
   } catch (e) { return false; }
 }
 
-/** Paleta oficial del juego, extraída de TAGame.upk. */
+/* El "Black" oficial del juego es (0.05,0.05,0.05): un gris muy oscuro, no negro. Para los swaps
+   usamos un negro más profundo, que no existe en la paleta de Psyonix. Va el primero de la lista
+   porque es el que se usa en la práctica; si faltara, las filas en negro saldrían como "sin fijar". */
+const EXTRAS = [
+  { obj: 'PuroNegro', label: 'Negro puro', hex: '#000000', valor: '0.004,0.004,0.004,1' },
+];
+
+/** Paleta oficial del juego (extraída de TAGame.upk) más los extras de arriba. */
 function paleta(cfg) {
   try {
     const p = leerJson(path.join(cfg.tools, 'paints.json'));
-    return p
+    const oficiales = p
       .filter((x) => !/Glow|Default__/.test(x.obj))
       .map((x) => ({ obj: x.obj, label: x.label, hex: x.hex, valor: x.base.map((v) => +v.toFixed(4)).join(',') }))
       .sort((a, b) => a.label.localeCompare(b.label, 'es'));
-  } catch (e) { return []; }
+    return [...EXTRAS, ...oficiales];
+  } catch (e) { return [...EXTRAS]; }
 }
 
 function rutaRecetas(cfg) { return path.join(cfg.tools, 'recetas.json'); }

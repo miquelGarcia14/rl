@@ -313,9 +313,12 @@
     const actual = r.colores[parametro];
     const soportado = colorState.recetas[r.i].colores[parametro] !== undefined || parametro !== 'TrimColor' || r.pkg === 'body_grain_SF.upk';
     if (!soportado && actual === undefined) return '<span class="note">—</span>';
+    const enPaleta = colorState.paleta.find((c) => c.valor === actual);
     const opciones = ['<option value="">(sin fijar)</option>'].concat(colorState.paleta.map((c) =>
       `<option value="${c.valor}"${c.valor === actual ? ' selected' : ''}>${esc(c.label)}</option>`));
-    const swatch = actual ? (colorState.paleta.find((c) => c.valor === actual) || {}).hex : null;
+    // un color que no esté en la paleta (editado a mano) debe verse igualmente, no como "sin fijar"
+    if (actual && !enPaleta) opciones.push(`<option value="${esc(actual)}" selected>Personalizado (${esc(actual)})</option>`);
+    const swatch = actual ? (enPaleta || {}).hex : null;
     return `<span class="row" style="gap:6px;flex-wrap:nowrap">${swatch ? `<i style="width:14px;height:14px;border-radius:3px;border:1px solid var(--line);background:${swatch};display:inline-block"></i>` : ''}`
       + `<select data-receta="${r.i}" data-param="${parametro}" style="width:140px">${opciones.join('')}</select></span>`;
   }
