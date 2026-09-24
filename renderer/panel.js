@@ -324,8 +324,16 @@
     colorState = s;
     $('cardColores').classList.toggle('hidden', !s.disponible);
     if (!s.disponible) return;
+    // el boton se resalta solo cuando de verdad hay algo que aplicar
+    const hayPendientes = (s.pendientes || 0) > 0;
+    $('btnColorAplicar').classList.toggle('primary', hayPendientes);
+    $('btnColorAplicar').textContent = hayPendientes ? `Aplicar al juego (${s.pendientes} pendiente${s.pendientes > 1 ? 's' : ''})` : 'Aplicar al juego';
+    if (!$('colorEstado').textContent || /pendiente|al día/i.test($('colorEstado').textContent))
+      $('colorEstado').textContent = hayPendientes ? 'Hay cambios sin aplicar.' : 'Todo al día.';
     $('colorFilas').innerHTML = s.recetas.map((r) => {
-      const estado = r.instalada ? pill('puesta', 'ok') : r.hayBackup ? pill('pendiente de aplicar', 'warn') : pill('sin copia del original', 'bad');
+      const estado = r.instalada ? pill('puesta', 'ok')
+        : !r.hayBackup ? pill('sin copia del original', 'bad')
+        : `${pill('pendiente de aplicar', 'warn')}<small class="note" style="display:block">${esc(r.motivo || '')}</small>`;
       const nota = r.nota ? `<small class="note" style="display:block">${esc(r.nota)}</small>` : '';
       return `<tr><td>${esc(r.nombre)}${nota}</td>`
         + PARAM_ORDEN.map((p) => `<td>${selectorColor(r, p)}</td>`).join('')

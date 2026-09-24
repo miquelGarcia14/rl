@@ -54,9 +54,27 @@ function estado(cfg, rlDir = 'C:\\Program Files\\Epic Games\\rocketleague\\TAGam
   const crypto = require('crypto');
   const sha = (f) => { try { return crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'); } catch (e) { return null; } };
 
+  // El registro guardaba solo el hash; desde v0.1.6 guarda {sha, colores}. Se aceptan los dos.
+  const shaReg = (e) => (e && typeof e === 'object' ? e.sha : e) || null;
+  const coloresReg = (e) => (e && typeof e === 'object' ? e.colores : undefined);
+  const mismosColores = (a, b) => {
+    if (!a || !b) return false;
+    const ka = Object.keys(a).sort(), kb = Object.keys(b).sort();
+    return ka.length === kb.length && ka.every((k, n) => k === kb[n] && String(a[k]) === String(b[k]));
+  };
+
   out.recetas = (doc.recetas || []).map((r, i) => {
     const enJuego = sha(path.join(rlDir, r.pkg));
     const hayBackup = fs.existsSync(path.join(cfg.backup, r.pkg));
+    const reg = registro[r.pkg];
+    const colores = r.colores || {};
+    const ficheroEsNuestro = !!(shaReg(reg) && shaReg(reg) === enJuego);
+    // Si el registro no sabe con qué colores se generó (formato antiguo), no podemos afirmar que
+    // coincida con lo elegido ahora: se marca como pendiente en vez de mentir diciendo "puesta".
+    const coloresConocidos = coloresReg(reg);
+    const alDia = ficheroEsNuestro && (Object.keys(colores).length === 0
+      ? coloresConocidos === undefined || Object.keys(coloresConocidos).length === 0
+      : mismosColores(colores, coloresConocidos));
     return {
       i,
       nombre: r.nombre || r.pkg,
@@ -64,11 +82,14 @@ function estado(cfg, rlDir = 'C:\\Program Files\\Epic Games\\rocketleague\\TAGam
       target: r.target || null,
       donor: r.donor || null,
       nota: r.nota || null,
-      colores: r.colores || {},
-      instalada: !!(registro[r.pkg] && registro[r.pkg] === enJuego),
+      colores,
+      instalada: alDia,
+      ficheroEsNuestro,
+      motivo: alDia ? null : (!ficheroEsNuestro ? 'el fichero del juego no es el nuestro' : 'has cambiado el color y aún no lo has aplicado'),
       hayBackup,
     };
   });
+  out.pendientes = out.recetas.filter((r) => !r.instalada).length;
   return out;
 }
 
